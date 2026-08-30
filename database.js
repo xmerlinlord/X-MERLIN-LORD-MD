@@ -28,4 +28,4 @@ export function saveGroup(groupId, data) {
 
 export function resetGroup(groupId) {
   groups.delete(groupId);
-      }
+}
