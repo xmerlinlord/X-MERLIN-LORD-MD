@@ -36,4 +36,4 @@ export async function sendGroupInfo(sock, groupId) {
       `👑 ᴀᴅᴍɪɴs\n${adminList}`,
     mentions: info.admins.map((admin) => admin.id)
   });
-    }
+}
