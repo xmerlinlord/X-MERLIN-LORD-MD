@@ -17,4 +17,4 @@ export async function isBotAdmin(sock, groupId) {
   if (!botId) return false;
 
   return isAdmin(sock, groupId, botId);
-    }
+}
