@@ -2,60 +2,29 @@ import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason
 } from "@whiskeysockets/baileys";
+
 import pino from "pino";
-import readline from "readline";
-import ping from "./commands/ping.js";
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
-
-const question = (text) =>
-  new Promise((resolve) => rl.question(text, resolve));
+import { handleGroupCommand, handleProtection } from "./commands/groupCommands.js";
 
 async function startBot() {
   const { state, saveCreds } =
-    await useMultiFileAuthState("./session");
+    await useMultiFileAuthState("./auth_info");
 
   const sock = makeWASocket({
     auth: state,
     logger: pino({ level: "silent" }),
-    printQRInTerminal: false
+    printQRInTerminal: true
   });
 
   sock.ev.on("creds.update", saveCreds);
 
-  if (!state.creds.registered) {
-    const phoneNumber = await question(
-      "Enter WhatsApp number with country code: "
-    );
-
-    const code = await sock.requestPairingCode(
-      phoneNumber.replace(/[^0-9]/g, "")
-    );
-
-    console.log(`🔐 Pairing Code: ${code}`);
-  }
-
-  sock.ev.on("messages.upsert", async ({ messages }) => {
-    const msg = messages[0];
-
-    if (!msg?.message) return;
-
-    const text =
-      msg.message.conversation ||
-      msg.message.extendedTextMessage?.text ||
-      "";
-
-    if (text.trim().toLowerCase() === ".ping") {
-      await ping(sock, msg);
-    }
-  });
-
   sock.ev.on("connection.update", ({ connection, lastDisconnect }) => {
     if (connection === "open") {
-      console.log("✅ X Merlin Lord MD connected!");
+      console.log("╭━━━〔 X MERLIN LORD MD 〕━━━╮");
+      console.log("┃ ✅ WhatsApp connected");
+      console.log("┃ 🛡️ Group Manager active");
+      console.log("╰━━━━━━━━━━━━━━━━━━━━━━━━━━╯");
     }
 
     if (connection === "close") {
@@ -63,11 +32,31 @@ async function startBot() {
         lastDisconnect?.error?.output?.statusCode !==
         DisconnectReason.loggedOut;
 
+      console.log(
+        "❌ Connection closed.",
+        shouldReconnect
+          ? "Reconnecting..."
+          : "Logged out."
+      );
+
       if (shouldReconnect) {
         startBot();
       }
     }
   });
+
+  sock.ev.on("messages.upsert", async ({ messages }) => {
+    const msg = messages[0];
+
+    if (!msg || msg.key.fromMe) return;
+
+    try {
+      await handleProtection(sock, msg);
+      await handleGroupCommand(sock, msg);
+    } catch (error) {
+      console.error("Message handler error:", error);
+    }
+  });
 }
 
-startBot();
+startBot().catch(console.error);
